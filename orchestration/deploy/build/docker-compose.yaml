@@ -1,0 +1,61 @@
+version: "3.4"
+
+services:
+
+    # Nvidia/CUDA + OpenGL:
+    nvidia_cudagl:
+        image: ${IMG_CUDAGL}
+        build: 
+            context: ../../deploy/dockerfiles/ubuntu20.04-x86_64/opengl
+            dockerfile: Dockerfile
+            args: 
+                - from=${IMG_NVIDIA}
+    
+    # Main Ubuntu libraries & user creation:
+    user_linux:
+        image: ${IMG_UBUNTU}
+        build: 
+            context: ../../deploy/dockerfiles/os_config
+            dockerfile: Dockerfile
+            args: 
+                - IMAGE_NAME=${IMG_CUDAGL}
+                - USER_NAME=${USER_NAME}
+                - USER_ID=${USER_ID}
+                - USER_GID=${USER_GID}
+                - CMAKE_VERSION=${CMAKE_VERSION}
+
+    # Python installation:
+    python:
+        image: ${IMG_PYTHON}
+        build: 
+            context: ../../deploy/dockerfiles/os_config/python
+            dockerfile: Dockerfile
+            args: 
+                - IMAGE_NAME=${IMG_UBUNTU}
+                - PYTHON_VERSION=${PYTHON_VERSION}
+                - PYTHON_V=${PYTHON_V}
+    
+    # Specific project image:
+    cityzen:
+        image: cityzen:latest
+        container_name: cityzen
+        build: 
+            context: ../../deploy/dockerfiles/cityzen
+            dockerfile: Dockerfile
+            args:
+                - IMAGE_NAME=${IMG_PYTHON}
+                - USER_NAME=${USER_NAME}
+                
+        privileged: true
+        stdin_open: true
+        tty: true
+        network_mode: host
+        environment:
+            - DISPLAY=:1
+            - QT_X11_NO_MITSHM=1
+            - PYTHONPATH=${PYTHONPATH}
+
+
+        volumes: 
+            - /tmp/.X11-unix:/tmp/.X11-unix:ro
+            - /home/${USER_NAME}/${REPO_PATH}:/home/${USER_NAME}/${REPO_PATH}/:rw
